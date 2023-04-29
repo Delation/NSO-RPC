@@ -44,14 +44,12 @@ jobs:
         ./build.sh &&
         cd ../client/dist &&
         ln -s /Applications "Applications (admin)" &&
-        ln -s ~/Applications "Applications (user)" &&
-        hdiutil create -fs HFS+ -srcfolder . -volname NSO-RPC NSO-RPC.dmg &&
-        zip -yr mac-installer.zip NSO-RPC.dmg &&
+        hdiutil create -fs HFS+ -srcfolder . -volname NSO-RPC mac-installer.dmg &&
         zip -yr mac-portable.zip NSO-RPC.app/
     - name: "Upload Build"
       if: matrix.os == 'macos-latest'
       uses: softprops/action-gh-release@v0.1.15
       with:
         files: |
-          client/dist/mac-installer.zip
+          client/dist/mac-installer.dmg
           client/dist/mac-portable.zip
