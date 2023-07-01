@@ -215,7 +215,7 @@ If you'd like to use this app for Discord Rich Presence purposes, please link an
       <property name="geometry">
        <rect>
         <x>0</x>
-        <y>120</y>
+        <y>121</y>
         <width>211</width>
         <height>41</height>
        </rect>
@@ -241,7 +241,7 @@ If you'd like to use this app for Discord Rich Presence purposes, please link an
       <property name="geometry">
        <rect>
         <x>0</x>
-        <y>160</y>
+        <y>161</y>
         <width>211</width>
         <height>41</height>
        </rect>
@@ -460,6 +460,54 @@ If you'd like to use this app for Discord Rich Presence purposes, please link an
        </property>
        <property name="text">
         <string>Revert</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_20">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>30</x>
+         <y>280</y>
+         <width>341</width>
+         <height>80</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Notice: You currently don't have an account selected.
+Please note that NSO-RPC requires two different Nintendo accounts.</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_21">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>100</x>
+         <y>360</y>
+         <width>201</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="textFormat">
+        <enum>Qt::RichText</enum>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+       <property name="openExternalLinks">
+        <bool>true</bool>
        </property>
       </widget>
      </widget>

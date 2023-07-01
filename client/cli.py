@@ -9,11 +9,12 @@ from api import *
 
 applicationPath = getAppPath()
 
+
 class Discord():
     def __init__(self, session_token = None, user_lang = None, rpc = False, targetID = None, version = None):
         self.rpc = None
         if rpc:
-            if not self.connect():
+            if not self.connect()[0]:
                 sys.exit("Failed to connect to Discord")
         self.running = False
         self.api = None
@@ -38,23 +39,24 @@ class Discord():
     def connect(self):
         try:
             self.rpc = pypresence.Presence('637692124539650048')
-        except:
+        except Exception as e:
             self.rpc = None
-            return False
+            return (False, e)
         fails = 0
         while True:
             # Attempt to connect to Discord. Will wait until it connects
             try:
                 self.rpc.connect()
+                print(log("Successfully Connected to Discord."))
                 break
             except Exception as e:
                 fails += 1
                 if fails > 500:
                     print(log('Error, failed after 500 attempts\n\'%s\'' % e))
                     self.rpc = None
-                    return False
+                    return (False, e)
                 continue
-        return True
+        return (True,)
 
     def disconnect(self):
         if self.rpc:
@@ -71,7 +73,7 @@ class Discord():
                 if not self.api.targetID and not self.gui:
                     if not self.api.friends:
                         self.api.getFriends()
-                    self.api.targetID = input('Which user are you?\n-----\n%s\n-----\nPlease enter the ID here: ' % '\n-----\n'.join([ '%s (%s)' % (x.name, x.nsaId) for x in client.api.friends]))
+                    self.api.targetID = input('Which user are you?\n-----\n%s\n-----\nPlease enter the ID here: ' % '\n-----\n'.join(['%s (%s)' % (x.name, x.nsaId) for x in client.api.friends]))
                     if not self.api.targetID in (x.nsaId for x in client.api.friends):
                         sys.exit(log('Unknown ID input by user'))
                     with open(os.path.join(applicationPath, 'private.txt'), 'w') as file:
@@ -92,7 +94,7 @@ class Discord():
 
         presence = self.user.presence
         if self.rpc:
-            if presence.game.name: # Please file an issue if this happens to fail
+            if presence.game.name:  # Please file an issue if this happens to fail
                 if self.currentGame != presence.game.name:
                     self.currentGame = presence.game.name
                     self.start = int(time.time())
@@ -101,7 +103,11 @@ class Discord():
                     state = 'Played for %s hours or more' % (int(presence.game.totalPlayTime / 60 / 5) * 5)
                     if presence.game.totalPlayTime / 60 < 5:
                         state = 'Played for a little while'
-                self.rpc.update(details = presence.game.name, large_image = presence.game.imageUri, large_text = presence.game.name, state = state, start = self.start, buttons = [{'label': 'Nintendo eShop', 'url': presence.game.shopUri},])
+                try:
+                    self.rpc.update(details = presence.game.name, large_image = presence.game.imageUri, large_text = presence.game.name, state = state, start = self.start, buttons = [{'label': 'Nintendo eShop', 'url': presence.game.shopUri},])
+                except pypresence.exceptions.PipeClosed:
+                    print(log("Discord pipe is closed, Attempting to reconnect."))
+                    self.connect()
             else:
                 self.currentGame = None
                 self.rpc.clear()
@@ -126,13 +132,18 @@ class Discord():
 
     def logout(self):
         if os.path.isfile(os.path.join(applicationPath, 'private.txt')):
-            try:os.remove(os.path.join(applicationPath, 'private.txt'))
-            except:pass
-            try:os.remove(os.path.join(applicationPath, 'settings.txt'))
-            except:pass
+            try:
+                os.remove(os.path.join(applicationPath, 'private.txt'))
+            except:
+                pass
+            try:
+                os.remove(os.path.join(applicationPath, 'settings.txt'))
+            except:
+                pass
             sys.exit()
 
-def getToken(manual = True, path:str = os.path.join(applicationPath, 'private.txt')):
+
+def getToken(manual = True, path: str = os.path.join(applicationPath, 'private.txt')):
     session_token, user_lang, targetID = None, None, None
     if os.path.isfile(path):
         with open(path, 'r') as file:
@@ -156,6 +167,7 @@ def getToken(manual = True, path:str = os.path.join(applicationPath, 'private.tx
     if not os.path.isfile(path) and os.path.isfile(tempToken):
         os.remove(tempToken)
     return session_token, user_lang, targetID
+
 
 if __name__ == '__main__':
     try:
