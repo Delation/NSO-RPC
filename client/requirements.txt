@@ -1,4 +1,3 @@
-PyQt6
 requests
 pypresence @ git+https://github.com/qwertyquerty/pypresence/@0ddf2c0483224339aff48467db570dd901d4793a
 qtpy
