@@ -19,7 +19,6 @@ I'd like to thank:
 - [anthonybaldwin](https://github.com/anthonybaldwin) for being awesome and helping out this project a ton!
 
 <h1 id = 'quick'>Quickstart Guide</h1>
-
 Download the app from the [latest release](https://github.com/MCMi460/NSO-RPC/releases) and run!  
 Once ran, the app will ask for you to log into your Nintendo account on a web browser. There is no malicious code with intent to steal your information, but it's best to [review the code][api] for yourself.
 
