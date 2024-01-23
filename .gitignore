@@ -5,6 +5,7 @@ tempToken.*
 # App
 settings.*
 logs.*
+NSO-RPC_Data/
 
 # Python
 venv/
@@ -12,12 +13,17 @@ __pycache__/
 
 # Qt
 *.autosave
+arm64/
+PyQt6_Qt6*.whl
+universal/
+x86_64/
 
 # Compilation
 build/
 dist/
 setup.py
 *.spec
+client/version.txt
 
 # Tests
 test*.*

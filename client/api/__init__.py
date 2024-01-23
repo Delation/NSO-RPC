@@ -13,21 +13,43 @@ import hashlib
 import re
 import pickle
 
+
 def getAppPath():
-    applicationPath = os.path.expanduser('~/Documents/NSO-RPC')
+    # Check for macOS platform and NSO-RPC freeze status
+    if sys.platform.startswith('darwin') and hasattr(sys, 'frozen') and sys.frozen == 'macosx_app':
+        app_root_folder = os.path.dirname(re.search(r'(.*/NSO-RPC\.app)/', os.path.abspath(__file__)).group(1))
+
+        # Check if NSO-RPC_Data exists
+        potential_data_path = os.path.join(app_root_folder, 'NSO-RPC_Data')
+        if os.path.isdir(potential_data_path):
+            return potential_data_path
+        else:
+            return os.path.expanduser('~/Documents/NSO-RPC')
+
     # Windows allows you to move your UserProfile subfolders, Such as Documents, Videos, Music etc.
     # However os.path.expanduser does not actually check and assumes its in the default location.
     # This tries to correctly resolve the Documents path and fallbacks to default if it fails.
+    application_path = os.path.expanduser('~/Documents/NSO-RPC')
     if platform.system() == 'Windows':
         try:
             import ctypes.wintypes
-            CSIDL_PERSONAL = 5 # My Documents
-            SHGFP_TYPE_CURRENT = 0 # Get current, not default value
-            buf=ctypes.create_unicode_buffer(ctypes.wintypes.MAX_PATH)
+            CSIDL_PERSONAL = 5  # My Documents
+            SHGFP_TYPE_CURRENT = 0  # Get current, not default value
+            buf = ctypes.create_unicode_buffer(ctypes.wintypes.MAX_PATH)
             ctypes.windll.shell32.SHGetFolderPathW(None, CSIDL_PERSONAL, None, SHGFP_TYPE_CURRENT, buf)
-            applicationPath = os.path.join(buf.value,'NSO-RPC')
-        except:pass
-    return applicationPath
+            application_path = os.path.join(buf.value, 'NSO-RPC')
+        except:
+            pass
+
+    # Use Portable path if it exists, else use Default path
+    portable_data_path = os.path.join(os.getcwd(), 'NSO-RPC_Data')
+    return portable_data_path if os.path.isdir(portable_data_path) else application_path
+
+
+def Restart_NSORPC():
+    args = [sys.executable] + sys.argv
+    os.execl(sys.executable, *args)
+
 
 def log(info, time = time.time()):
     path = getAppPath()
@@ -37,38 +59,41 @@ def log(info, time = time.time()):
         file.write('%s: %s\n' % (time, info))
     return info
 
+
 def getVersion():
     for i in range(5):
         try:
             r = requests.get('https://apps.apple.com/us/app/nintendo-switch-online/id1234806557', timeout = 10)
             break
-        except:
-            log('Failed to get Apple\'s store page. Retrying...')
-    searchPattern = re.compile(r'Version\s*(\d\.\d\.\d)+')
-    version = searchPattern.findall(r.text)
-    if not version:
-        return ''
-    pattern = re.compile(r'(\d.\d.\d)')
-    if not re.search(pattern, version[0]):
-        return ''
-    return version[0]
+        except requests.RequestException as e:
+            log(f'Failed to get Apple\'s store page. Retrying... Error: {str(e)}')
+    else:
+        log('Failed to get Apple\'s store page after multiple retries.')
+    if r:
+        searchPattern = re.compile(r'Version\s*(\d\.\d\.\d)+')
+        version = searchPattern.search(r.text)
+        if version:
+            return version.group(1)
+    return ''
+
 
 client_id = '71b963c1b7b6d119'
 version = 0.3
 nsoAppVersion = None
-languages = [ # ISO Language codes
-'en-US',
-'es-MX',
-'fr-CA',
-'ja-JP',
-'en-GB',
-'es-ES',
-'fr-FR',
-'de-DE',
-'it-IT',
-'nl-NL',
-'ru-RU'
+languages = [  # ISO Language codes
+    'en-US',
+    'es-MX',
+    'fr-CA',
+    'ja-JP',
+    'en-GB',
+    'es-ES',
+    'fr-FR',
+    'de-DE',
+    'it-IT',
+    'nl-NL',
+    'ru-RU'
 ]
+
 
 class API():
     def __init__(self, session_token, user_lang, targetID, version):
@@ -142,7 +167,7 @@ class API():
         login = Login(self.userInfo, self.user_lang, self.accessToken, self.guid)
         login.loginToAccount()
         try:
-            self.headers['Authorization'] = 'Bearer %s' % login.account['result'].get('webApiServerCredential').get('accessToken') # Add authorization token
+            self.headers['Authorization'] = 'Bearer %s' % login.account['result'].get('webApiServerCredential').get('accessToken')  # Add authorization token
         except Exception as e:
             raise Exception('Failure with authorization: %s\nLogin returns %s' % (e, login.account))
         self.login = {
@@ -169,6 +194,7 @@ class API():
         list.populateList(self)
         self.friends = list.friendList
 
+
 class Nintendo():
     def __init__(self, sessionToken, userLang):
         self.headers = {
@@ -190,6 +216,7 @@ class Nintendo():
         response = requests.post(self.url + route, headers = self.headers, json = self.body)
         return json.loads(response.text)
 
+
 class UsersMe():
     def __init__(self, accessToken, userLang):
         self.headers = {
@@ -209,15 +236,17 @@ class UsersMe():
         response = requests.get(self.url + route, headers = self.headers)
         return json.loads(response.text)
 
+
 class imink():
-    def __init__(self, id_token, timestamp, guid, iteration):
+    def __init__(self, na_id, id_token, timestamp, guid, iteration):
         self.headers = {
             'User-Agent': 'NSO-RPC/%s' % version,
             'Content-Type': 'application/json; charset=utf-8',
         }
         self.body = {
             'token': id_token,
-            'hashMethod': str(iteration),
+            'hash_method': str(iteration),
+            'na_id': na_id,
         }
 
         self.url = 'https://api.imink.app'
@@ -228,6 +257,7 @@ class imink():
 
         response = requests.post(self.url + route, headers = self.headers, data = json.dumps(self.body))
         return json.loads(response.text)
+
 
 class Login():
     def __init__(self, userInfo, userLang, accessToken, guid):
@@ -245,13 +275,14 @@ class Login():
         }
 
         self.url = 'https://api-lp1.znc.srv.nintendo.net'
-        self.timestamp = int(time.time()) * 1000 # Convert from iOS to Android
+        self.timestamp = int(time.time()) * 1000  # Convert from iOS to Android
         self.guid = guid
 
         self.userInfo = userInfo
         self.accessToken = accessToken
+        self.na_id = userInfo['id']
 
-        self.imink = imink(self.accessToken, self.timestamp, self.guid, 1).get()
+        self.imink = imink(self.na_id, self.accessToken, self.timestamp, self.guid, 1).get()
         self.timestamp = int(self.imink['timestamp'])
         self.guid = self.imink['request_id']
 
@@ -274,6 +305,7 @@ class Login():
         self.account = json.loads(response.text)
         return self.account
 
+
 class User():
     def __init__(self, f):
         self.id = f.get('id')
@@ -290,9 +322,10 @@ class User():
 
     def description(self):
         return ('%s (id: %s, nsaId: %s):\n' % (self.name, self.id, self.nsaId)
-        + '   - Profile Picture: %s\n' % self.imageUri
-        + '   - Status: %s\n' % self.presence.description()
-        )
+                + '   - Profile Picture: %s\n' % self.imageUri
+                + '   - Status: %s\n' % self.presence.description()
+                )
+
 
 class Friend(User):
     def __init__(self, f):
@@ -304,26 +337,28 @@ class Friend(User):
 
     def description(self):
         return ('%s (id: %s, nsaId: %s):\n' % (self.name, self.id, self.nsaId)
-        + '   - Profile Picture: %s\n' % self.imageUri
-        + '   - Is Favorite: %s\n' % self.isFavoriteFriend
-        + '   - Friend Creation Date: %s\n' % self.friendCreatedAt
-        + '   - Status: %s\n' % self.presence.description()
-        )
+                + '   - Profile Picture: %s\n' % self.imageUri
+                + '   - Is Favorite: %s\n' % self.isFavoriteFriend
+                + '   - Friend Creation Date: %s\n' % self.friendCreatedAt
+                + '   - Status: %s\n' % self.presence.description()
+                )
+
 
 class FriendList():
     def __init__(self):
-        self.route = '/v3/Friend/List' # Define API route
+        self.route = '/v3/Friend/List'  # Define API route
 
-        self.friendList = [] # List of Friend object(s)
+        self.friendList = []  # List of Friend object(s)
 
-    def populateList(self, API:API):
+    def populateList(self, API: API):
         response = API.makeRequest(self.route)
         try:
             arr = json.loads(response.text)['result']['friends']
         except Exception as e:
             log('Failure with authorization: %s\Friends returns %s' % (e, response.text))
             raise e
-        self.friendList = [ Friend(friend) for friend in arr ]
+        self.friendList = [Friend(friend) for friend in arr]
+
 
 class Presence():
     def __init__(self, f):
@@ -334,8 +369,9 @@ class Presence():
 
     def description(self):
         return ('%s (updatedAt: %s, logoutAt: %s)\n' % (self.state, self.updatedAt, self.logoutAt)
-        + '   - Game: %s' % self.game.description()
-        )
+                + '   - Game: %s' % self.game.description()
+                )
+
 
 class Game():
     def __init__(self, f):
@@ -348,11 +384,12 @@ class Game():
 
     def description(self):
         return ('%s (sysDescription: %s)\n' % (self.name, self.sysDescription)
-        + '   - Game Icon: %s\n' % self.imageUri
-        + '   - Shop Uri: %s\n' % self.shopUri
-        + '   - Total Play Time: %s\n' % self.totalPlayTime
-        + '   - First Played At: %s' % self.firstPlayedAt
-        )
+                + '   - Game Icon: %s\n' % self.imageUri
+                + '   - Shop Uri: %s\n' % self.shopUri
+                + '   - Total Play Time: %s\n' % self.totalPlayTime
+                + '   - First Played At: %s' % self.firstPlayedAt
+                )
+
 
 class Session():
     def __init__(self):
@@ -362,7 +399,7 @@ class Session():
         }
         self.Session = requests.Session()
 
-    def login(self, receiveInput):
+    def login(self, receiveInput, *, altLink = None):
         state = base64.urlsafe_b64encode(os.urandom(36))
         verify = base64.urlsafe_b64encode(os.urandom(32))
         authHash = hashlib.sha256()
@@ -382,8 +419,13 @@ class Session():
         }
         response = self.Session.get(url, headers = self.headers, params = params)
 
-        webbrowser.open(response.history[0].url)
+        try:
+            webbrowser.open(response.history[0].url)
+        except Exception as e:
+            print(log(e))
         print('Open this link: %s' % response.history[0].url)
+        if altLink:
+            altLink('<a href="%s" style="color: cyan;">Click here if your browser didn\'t open</a>' % response.history[0].url)
         tokenPattern = re.compile(r'(eyJhbGciOiJIUzI1NiJ9\.[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*)')
         code = tokenPattern.findall(receiveInput())[0]
 
@@ -397,11 +439,11 @@ class Session():
         headers = self.headers
         headers.update({
             'Accept-Language': 'en-US',
-            'Accept':          'application/json',
-            'Content-Type':    'application/x-www-form-urlencoded',
-            'Content-Length':  '540',
-            'Host':            'accounts.nintendo.com',
-            'Connection':      'Keep-Alive',
+            'Accept': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Length': '540',
+            'Host': 'accounts.nintendo.com',
+            'Connection': 'Keep-Alive',
         })
         body = {
             'client_id': client_id,
